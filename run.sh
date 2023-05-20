@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-exec uvicorn app:app --reload --port 8080
+python3 main.py
