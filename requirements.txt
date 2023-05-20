@@ -1,3 +1,10 @@
 requests
 fastapi
 uvicorn
+openai
+python-dotenv==1.0.0
+
+# tests
+pygithub
+vcrpy
+pytest-recording
