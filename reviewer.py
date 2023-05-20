@@ -4,7 +4,15 @@ import os
 import re
 
 import requests
+import logging
 import json
+import openai
+from openai.error import APIError, RateLimitError, Timeout
+import time
+
+
+LOGGER = logging.getLogger(__name__)
+
 
 def review_pr(pr_link: str) -> str:
     """
@@ -61,7 +69,7 @@ Below are guidelines for acceptable PRs.
 - You should have documented your changes clearly and comprehensively.
 - You should not include any unrelated or "extra" small tweaks or changes.
     """
-    model = cfg.smart_llm_model
+    model = "gpt-4"
     # parse args to comma separated string
     messages = [
         {
@@ -140,6 +148,72 @@ def extract_github_info(url):
         }
     else:
         return None
+
+
+def create_chat_completion(
+    messages: List[Message],  # type: ignore
+    model: Optional[str] = None,
+    temperature: float = None,
+    max_tokens: Optional[int] = None,
+) -> str:
+    """Create a chat completion using the OpenAI API
+
+    Args:
+        messages (List[Message]): The messages to send to the chat completion
+        model (str, optional): The model to use. Defaults to None.
+        temperature (float, optional): The temperature to use. Defaults to 0.9.
+        max_tokens (int, optional): The max tokens to use. Defaults to None.
+
+    Returns:
+        str: The response from the chat completion
+    """
+    if temperature is None:
+        temperature = 0
+
+    num_retries = 10
+    warned_user = False
+    LOGGER.debug(
+        f"Creating chat completion with model {model}, temperature {temperature}, max_tokens {max_tokens}"
+    )
+    response = None
+    for attempt in range(num_retries):
+        backoff = 2 ** (attempt + 2)
+        try:
+            response = openai.ChatCompletion.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                api_key=os.getenv("OPENAI_API_KEY"),
+            )
+        except RateLimitError:
+            LOGGER.debug(
+                f"Error: ", f"Reached rate limit, passing..."
+            )
+            if not warned_user:
+                LOGGER.info(
+                    f"Please double check that you have setup a PAID OpenAI API Account. "
+                    + f"You can read more here: https://docs.agpt.co/setup/#getting-an-api-key"
+                )
+                warned_user = True
+        except (APIError, Timeout) as e:
+            if e.http_status != 502:
+                raise
+            if attempt == num_retries - 1:
+                raise
+        LOGGER.debug(
+            f"Error: ",
+            f"API Bad gateway. Waiting {backoff} seconds...",
+        )
+        time.sleep(backoff)
+    if response is None:
+        LOGGER.error(
+            "FAILED TO GET RESPONSE FROM OPENAI",
+            "Auto-GPT has failed to get a response from OpenAI's services. "
+            + f"Try running Auto-GPT again, and if the problem the persists try running it with `--debug`.",
+        )
+    resp = response.choices[0].message["content"]
+    return resp
 
 
 if __name__ == "__main__":
