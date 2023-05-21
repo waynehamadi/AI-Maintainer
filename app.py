@@ -15,11 +15,9 @@ async def handle_github_webhooks(request: Request, response: Response):
         html_url = pull_request.get("html_url", None)
         if html_url is None:
             return {}
-        try:
-            msg = review_pr(html_url)
-            print(msg)
-        except Exception as e:
-            print(e)
+        msg = review_pr(html_url)
+        print(msg)
+
     return {}
         
 
