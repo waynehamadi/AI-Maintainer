@@ -3,3 +3,5 @@
 ## starting the server locally
 
 run `uvicorn app:app --reload --port 8080` in the root directory
+
+test for reopening -- do not acceptt
