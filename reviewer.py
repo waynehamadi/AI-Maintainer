@@ -4,14 +4,19 @@ import os
 import re
 
 import requests
-import logging
 import json
 import openai
 from openai.error import APIError, RateLimitError, Timeout
 import time
+from dotenv import load_dotenv
 
 
-LOGGER = logging.getLogger(__name__)
+def load_envs():
+    """
+    Loads env variables from .env file
+    """
+
+    load_dotenv()
 
 
 def review_pr(pr_link: str) -> str:
@@ -38,6 +43,7 @@ def review_pr(pr_link: str) -> str:
         raise ValueError(f'Invalid response status: {response.status_code}. '
                          f'Response text is: {response.text} ')
     diff = response.text
+    print(f"diff: {diff}")
 
     # now we need to make llm call to evaluate the reponse
     llm_response = _process_diff(diff)
@@ -118,6 +124,7 @@ def _push_review(review, pr_link):
         "event": "APPROVE" if accepted else "REQUEST_CHANGES",
         "body": tail_of_review,
     }
+    # print(f"Bearer {os.getenv('GITHUB_REVIEWER_TOKEN')}")
     response = requests.post(
         f"https://api.github.com/repos/{info['owner']}/{info['repo']}/pulls/{info['pull_id']}/reviews",
         data=json.dumps(body),
@@ -152,9 +159,8 @@ def extract_github_info(url):
 
 def create_chat_completion(
     messages: List[Message],  # type: ignore
-    model: Optional[str] = None,
+    model,
     temperature: float = None,
-    max_tokens: Optional[int] = None,
 ) -> str:
     """Create a chat completion using the OpenAI API
 
@@ -170,28 +176,32 @@ def create_chat_completion(
     if temperature is None:
         temperature = 0
 
-    num_retries = 10
+    num_retries = 5
     warned_user = False
-    LOGGER.debug(
-        f"Creating chat completion with model {model}, temperature {temperature}, max_tokens {max_tokens}"
+    print(
+        f"Creating chat completion with model {model}, temperature {temperature}"
     )
     response = None
+    resp = None
     for attempt in range(num_retries):
         backoff = 2 ** (attempt + 2)
         try:
+            print(f"Attempt {attempt + 1}/{num_retries}")
+            print(f'model: {model}')
+            print(f'messages: {messages}')
+            print(f'temperature: {temperature}')
             response = openai.ChatCompletion.create(
                 model=model,
                 messages=messages,
                 temperature=temperature,
-                max_tokens=max_tokens,
                 api_key=os.getenv("OPENAI_API_KEY"),
             )
         except RateLimitError:
-            LOGGER.debug(
+            print(
                 f"Error: ", f"Reached rate limit, passing..."
             )
             if not warned_user:
-                LOGGER.info(
+                print(
                     f"Please double check that you have setup a PAID OpenAI API Account. "
                     + f"You can read more here: https://docs.agpt.co/setup/#getting-an-api-key"
                 )
@@ -199,22 +209,27 @@ def create_chat_completion(
         except (APIError, Timeout) as e:
             if e.http_status != 502:
                 raise
+            else:
+                print(
+                    f"Error: ",
+                    f"API Bad gateway. Waiting {backoff} seconds...",
+                )
+                time.sleep(backoff)
             if attempt == num_retries - 1:
                 raise
-        LOGGER.debug(
-            f"Error: ",
-            f"API Bad gateway. Waiting {backoff} seconds...",
-        )
-        time.sleep(backoff)
-    if response is None:
-        LOGGER.error(
-            "FAILED TO GET RESPONSE FROM OPENAI",
-            "Auto-GPT has failed to get a response from OpenAI's services. "
-            + f"Try running Auto-GPT again, and if the problem the persists try running it with `--debug`.",
-        )
-    resp = response.choices[0].message["content"]
+        if response is None:
+            print(
+                "FAILED TO GET RESPONSE FROM OPENAI",
+                "Auto-GPT has failed to get a response from OpenAI's services. "
+                + f"Try running Auto-GPT again, and if the problem the persists try running it with `--debug`.",
+            )
+        resp = response.choices[0].message["content"]
+        break
+    if resp is None:
+        raise ValueError("Invalid response from OpenAI after 5 retries")
     return resp
 
 
 if __name__ == "__main__":
-    review_pr("https://github.com/merwanehamadi/Auto-GPT/pull/116")
+    load_envs()
+    review_pr("https://github.com/merwanehamadi/Auto-GPT/pull/301")

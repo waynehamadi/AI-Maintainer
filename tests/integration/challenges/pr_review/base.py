@@ -9,7 +9,7 @@ PR_TARGET_BRANCH = "hackathon-pr-target"
 PR_TARGET_REPO_USER = "merwanehamadi"
 REPO_NAME = "Auto-GPT"
 PR_TARGET_REPO = f"{PR_TARGET_REPO_USER}/{REPO_NAME}"
-GITHUB_TOKEN = os.environ.get("GITHUB_PAT")
+GITHUB_TOKEN = os.environ.get("GITHUB_CREATOR_TOKEN")
 
 
 def create_pr(
