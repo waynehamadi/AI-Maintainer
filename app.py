@@ -11,16 +11,16 @@ async def handle_github_webhooks(request: Request, response: Response):
     action = body.get("action", None)
     # number = body.get("number", None)
     pull_request = body.get("pull_request", {})
-    if action == "opened":
+    if action == "opened" or action == "reopened":
         html_url = pull_request.get("html_url", None)
         if html_url is None:
             return {}
         try:
-            review_pr(html_url)
+            msg = review_pr(html_url)
+            print(msg)
         except Exception as e:
             print(e)
     return {}
-        
         
 
 app = FastAPI()
