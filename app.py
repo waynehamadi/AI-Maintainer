@@ -12,11 +12,11 @@ async def handle_github_webhooks(request: Request, response: Response):
     # number = body.get("number", None)
     pull_request = body.get("pull_request", {})
     if action == "opened":
-        url = pull_request.get("url", None)
-        if url is None:
+        html_url = pull_request.get("html_url", None)
+        if html_url is None:
             return {}
         try:
-            review_pr(url)
+            review_pr(html_url)
         except Exception as e:
             print(e)
     return {}
