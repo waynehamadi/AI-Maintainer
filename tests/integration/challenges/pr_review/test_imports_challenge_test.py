@@ -3,7 +3,6 @@ import pytest
 
 from tests.integration.challenges.pr_review.base import run_tests
 
-PR_LINK = "https://github.com/merwanehamadi/Auto-GPT/pull/136"
 PARAMETERS = SimpleNamespace(
     source_branch_name="imports-challenge-test",
     source_repo_user="merwanehamadi",

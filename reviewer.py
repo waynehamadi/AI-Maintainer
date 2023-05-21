@@ -125,6 +125,8 @@ def _push_review(review, pr_link):
         "body": tail_of_review,
     }
     # print(f"Bearer {os.getenv('GITHUB_REVIEWER_TOKEN')}")
+    print('Pushing review: ', body)
+    print('url: ', f"https://api.github.com/repos/{info['owner']}/{info['repo']}/pulls/{info['pull_id']}/reviews")
     response = requests.post(
         f"https://api.github.com/repos/{info['owner']}/{info['repo']}/pulls/{info['pull_id']}/reviews",
         data=json.dumps(body),
