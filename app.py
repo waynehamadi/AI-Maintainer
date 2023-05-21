@@ -5,7 +5,8 @@ router = APIRouter()
 @router.post("/github_webhooks")
 async def handle_github_webhooks(request: Request, response: Response):
     print("Received a github webhook")
-    print(request.body)
+    body = await request.json()
+    print(body)
     return {}
 
 app = FastAPI()
