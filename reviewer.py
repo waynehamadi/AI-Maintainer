@@ -20,7 +20,7 @@ def load_envs():
     load_dotenv()
 
 
-def review_pr(api_url: str, diff_url: str, title: str, description: str) -> str:
+def review_pr(api_url: str, diff_url: str, title: str, description: str, owner_username: str, repo_name: str, pull_id) -> str:
     """
     A function that takes in code and suggestions and returns a response from create
       chat completion api call.
@@ -50,7 +50,7 @@ def review_pr(api_url: str, diff_url: str, title: str, description: str) -> str:
     llm_response = _gpt_process_pr(title, description, diff)
     # llm_response = "acceptable stuff here"
     print(f"diff response: {llm_response}")
-    _push_review(llm_response, api_url)
+    _push_review(llm_response, owner_username, repo_name, pull_id)
 
     return "Successfully reviewed PR."
 
@@ -111,10 +111,10 @@ def _gpt_process_pr(title: str, description:str, diff: str):
     return response
 
 
-def _push_review(review, api_url):
+def _push_review(review, owner_username, repo_name, pull_id):
     """
     Push review to github
-    link: https://api.github.com/repos/{{owner}}/{{repo}}/pulls/{{pull_number}}/reviews
+    link: https://api.github.com/repos/{{owner_username}}/{{repo_name}}/pulls/{{pull_id}}/reviews
     Body: {
         "event": "APPROVE",
         "body": "review"
@@ -129,8 +129,6 @@ def _push_review(review, api_url):
     We then get the response after that and then push it to github with the API requests shown above
     """
     accepted = False
-
-    info = extract_github_info(api_url)
 
     review = review.strip()
     if review.lower().startswith("acceptable"):
@@ -148,7 +146,7 @@ def _push_review(review, api_url):
     }
     # print(f"Bearer {os.getenv('GITHUB_REVIEWER_TOKEN')}")
     response = requests.post(
-        f"https://api.github.com/repos/{info['owner_username']}/{info['repo_name']}/pulls/{info['pull_id']}/reviews",
+        f"https://api.github.com/repos/{owner_username}/{repo_name}/pulls/{pull_id}/reviews",
         data=json.dumps(body),
         headers={
             "Authorization": f"Bearer {os.getenv('GITHUB_REVIEWER_TOKEN')}",
@@ -162,36 +160,7 @@ def _push_review(review, api_url):
     if response.status_code != 200:
         raise ValueError(f'Invalid response status: {response.status_code}. '
                          f'Response text is: {response.text} ')
-
-
-def extract_github_info(url):
-    
-    response = requests.get(url)
-    if response.status_code != 200:
-        raise ValueError(f'Invalid response status when fetching the diff: {response.status_code}. '
-                         f'Response text is: {response.text} ')
-    
-    json = response.json()
-    
-
-
-    pattern = r'https://github.com/([^/]+)/([^/]+)/pull/(\d+)'
-    match = re.match(pattern, url)
-
-    title = json['title']
-    description = json['body']
-    owner_username = json['user']['login']
-    repo_name = json['head']['repo']['name']
-    pull_id = json['number']
-
-    return {
-        'owner_username': owner_username,
-        'repo_name': repo_name,
-        'pull_id': int(pull_id),
-        'title': title,
-        'description': description
-    }
-
+    print(f"Successfully pushed review to github. Response: {response.text}")
 
 def create_chat_completion(
     messages: List[Message],  # type: ignore
