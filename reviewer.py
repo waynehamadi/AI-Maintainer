@@ -171,7 +171,6 @@ def extract_github_info(url):
         raise ValueError(f'Invalid response status when fetching the diff: {response.status_code}. '
                          f'Response text is: {response.text} ')
     
-    embed()
     json = response.json()
     
 
