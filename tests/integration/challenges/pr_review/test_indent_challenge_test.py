@@ -13,10 +13,10 @@ PARAMETERS = SimpleNamespace(
     body="indent-challenge-test",
 
     # PR success criteria
-    approved=False,
+    review_contains=[],
     # contains={"bad_variable_name.py": ["variable"]},
 )
-@pytest.skip("skip")
+@pytest.mark.skip("skip")
 def test_indent_challenge_test(
 
 ) -> None:

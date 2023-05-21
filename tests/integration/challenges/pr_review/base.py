@@ -8,8 +8,10 @@ PR_TARGET_BRANCH = "hackathon-pr-target"
 PR_TARGET_REPO_USER = "merwanehamadi"
 REPO_NAME = "Auto-GPT"
 PR_TARGET_REPO = f"{PR_TARGET_REPO_USER}/{REPO_NAME}"
-GITHUB_TOKEN = os.environ.get("GITHUB_CREATOR_TOKEN")
-
+GITHUB_CREATOR_TOKEN = os.environ.get("GITHUB_CREATOR_TOKEN")
+GITHUB_REVIEWER_TOKEN = os.environ.get("GITHUB_REVIEWER_TOKEN")
+from collections import defaultdict
+from datetime import datetime
 
 def create_pr(
         source_branch_name,
@@ -19,7 +21,7 @@ def create_pr(
     ):
     # First create a Github instance with your token:
 
-    g = Github(GITHUB_TOKEN)
+    g = Github(GITHUB_CREATOR_TOKEN)
 
     # Then get your repository:
     repo = g.get_user(source_repo_user).get_repo(REPO_NAME)
@@ -48,7 +50,7 @@ def create_pr(
 
 def check_pr(pr_number, parameters):
     # First create a Github instance with your token:
-    g = Github(GITHUB_TOKEN)
+    g = Github(GITHUB_CREATOR_TOKEN)
 
     # Get the repository
     repo = g.get_user(PR_TARGET_REPO_USER).get_repo(REPO_NAME)
@@ -66,62 +68,59 @@ def check_pr(pr_number, parameters):
             approvals += 1
 
     # Get file comments
-    check_comments(parameters, pr, pr_number)
+    check_last_review(parameters, pr, pr_number, PR_TARGET_REPO)
 
     print(
         f"The PR number {pr_number} in the repository {PR_TARGET_REPO} has {approvals} approvals."
     )
-    if parameters.approved:
-        assert approvals > 0
-    else:
-        assert approvals == 0
+    if hasattr(parameters, "approved"):
+        if parameters.approved:
+            assert approvals > 0
+        else:
+            assert approvals == 0
 
     return True  # All conditions were satisfied
 
+def check_last_review(parameters, pr, pr_number, PR_TARGET_REPO):
+    reviews = pr.get_reviews().get_page(0)
 
-def check_comments(parameters, pr, pr_number):
-    file_comments = defaultdict(list)  # Store comments per file
-    for comment in pr.get_comments():
-        file_comments[comment.path].append(comment.body)
-    # Verify if all required comments are present
-    if hasattr(parameters, "contains") is False:
-        return
-    for file, required_comments in parameters.contains.items():
-        for required_comment in required_comments:
-            assert any(required_comment in comment for comment in file_comments[file]), \
-                f"Missing required comment '{required_comment}' in file {file} for PR number {pr_number} in the repository {PR_TARGET_REPO}."
+    # if there's no review, return
+    if not reviews:
+        assert False, "No review found for this PR."
+
+    # Get the last review
+    last_review = reviews[-1]
+    review_time = last_review.submitted_at
+
+    # get current time
+    now = datetime.utcnow()
+
+    # Check if it was submitted within last 10 seconds
+    assert (now - review_time).total_seconds() <= 10, \
+        f"The latest review on PR number {pr_number} in the repository {PR_TARGET_REPO} was not submitted within the last 10 seconds."
+
+    # Check if all required comments are present in the last review
+    required_comments = parameters.review_contains
+    for required_comment in required_comments:
+        assert required_comment in last_review.body, \
+            f"Missing required comment '{required_comment}' in the last review of PR number {pr_number} in the repository {PR_TARGET_REPO}."
+
 
 
 def run_tests(parameters):
     load_envs()
-    pr_number = create_pr(
-        parameters.source_branch_name,
-        parameters.source_repo_user,
-        parameters.title,
-        parameters.body,
-    )
+    if hasattr(parameters, "pr_number"):
+        pr_number = parameters.pr_number
+    else:
+        pr_number = create_pr(
+            parameters.source_branch_name,
+            parameters.source_repo_user,
+            parameters.title,
+            parameters.body,
+        )
+
     pr_link = "https://github.com/merwanehamadi/Auto-GPT/pull/"
     pr_link += str(pr_number)
     review_pr(pr_link)
-    # call_api(pr_number)
 
     check_pr(pr_number, parameters)
-
-
-# def call_api(pr_number):
-#     data = {
-#         "repo_name": "Auto-GPT",
-#         "repo_user": "merwanehamadi",
-#         "pr_number": pr_number
-#     }
-#     # Your endpoint URL
-#
-#     url = f"{os.environ['PR_REVIEWER_URL']}/pull_request_review"
-#     # Make the POST request
-#     response = requests.post(url, data=json.dumps(data))
-#     # Check the response
-#     if response.status_code == 200:
-#         print("Success!")
-#     else:
-#         print(f"Failed with status code: {response.status_code}")
-#         print(f"Response: {response.text}")

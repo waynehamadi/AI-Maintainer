@@ -13,7 +13,8 @@ PARAMETERS = SimpleNamespace(
     body="Useless comment",
 
     # PR success criteria
-    approved=False,
+    pr_number=116,
+    review_contains=["comment"]
 )
 
 

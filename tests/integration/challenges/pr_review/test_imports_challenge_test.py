@@ -12,10 +12,10 @@ PARAMETERS = SimpleNamespace(
     body="imports-challenge-test",
 
     # PR success criteria
-    approved=False,
+    review_contains=[],
     # contains={"bad_variable_name.py": ["variable"]},
 )
-@pytest.skip("skip")
+@pytest.mark.skip("skip")
 def test_imports_challenge_test(
 
 ) -> None:

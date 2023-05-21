@@ -3,7 +3,7 @@ import pytest
 
 from tests.integration.challenges.pr_review.base import run_tests
 
-PR_LINK = "https://github.com/merwanehamadi/Auto-GPT/pull/116"
+PR_LINK = "https://github.com/merwanehamadi/Auto-GPT/pull/136"
 PARAMETERS = SimpleNamespace(
     source_branch_name="import-challenge-answer",
     source_repo_user="merwanehamadi",
@@ -14,7 +14,8 @@ PARAMETERS = SimpleNamespace(
 
     # PR success criteria
     approved=False,
-    # contains={"bad_variable_name.py": ["variable"]},
+    pr_number=136,
+    review_contains=["import"],
 )
 
 # @pytest.skip("skip")
