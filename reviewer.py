@@ -20,7 +20,7 @@ def load_envs():
     load_dotenv()
 
 
-def review_pr(api_url: str, diff_url: str, title: str, description: str, owner_username: str, repo_name: str, pull_id) -> str:
+def review_pr(api_url: str, diff_url: str, title: str, description: str) -> str:
     """
     A function that takes in code and suggestions and returns a response from create
       chat completion api call.
@@ -50,7 +50,7 @@ def review_pr(api_url: str, diff_url: str, title: str, description: str, owner_u
     llm_response = _gpt_process_pr(title, description, diff)
     # llm_response = "acceptable stuff here"
     print(f"diff response: {llm_response}")
-    _push_review(llm_response, owner_username, repo_name, pull_id)
+    _push_review(llm_response, api_url)
 
     return "Successfully reviewed PR."
 
@@ -111,7 +111,7 @@ def _gpt_process_pr(title: str, description:str, diff: str):
     return response
 
 
-def _push_review(review, owner_username, repo_name, pull_id):
+def _push_review(review, api_url):
     """
     Push review to github
     link: https://api.github.com/repos/{{owner_username}}/{{repo_name}}/pulls/{{pull_id}}/reviews
@@ -150,7 +150,7 @@ def _push_review(review, owner_username, repo_name, pull_id):
     }
     # print(f"Bearer {os.getenv('GITHUB_REVIEWER_TOKEN')}")
     response = requests.post(
-        f"https://api.github.com/repos/{owner_username}/{repo_name}/pulls/{pull_id}/reviews",
+        api_url + "/reviews",
         data=json.dumps(body),
         headers={
             "Authorization": f"Bearer {os.getenv('GITHUB_REVIEWER_TOKEN')}",
