@@ -100,7 +100,7 @@ def run_tests(parameters):
         parameters.title,
         parameters.body,
     )
-    # call_api(pr_number)
+    call_api(pr_number)
 
     check_pr(pr_number, parameters)
 
@@ -112,9 +112,10 @@ def call_api(pr_number):
         "pr_number": pr_number
     }
     # Your endpoint URL
-    url = "http://127.0.0.1:8080/pull_request_review"
+
+    url = f"{os.environ['PR_REVIEWER_URL']}/pull_request_review"
     # Make the POST request
-    response = requests.post(url, headers=headers, data=json.dumps(data))
+    response = requests.post(url, data=json.dumps(data))
     # Check the response
     if response.status_code == 200:
         print("Success!")
