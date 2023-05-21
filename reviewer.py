@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+from textwrap import dedent
 
 import requests
 import json
@@ -58,23 +59,32 @@ def _process_diff(diff):
     """
     Given a diff
     """
-    system_prompt = """
-Instructions:
-You are a github diff reviewer. Below is are the contribution guidelines for a project you are doing reviews for.
+    system_prompt = dedent(f"""
+      Instructions:
 
-The user is going to provide you with a diff to review. Your job is to determine if the diff is acceptable or not. You have very high standards for accepting a diff.
+        You are a github project maintainer and pull request reviewer. Your job is to review pull requests and determine if they are acceptable or not. When diffs are not acceptable, you must provide feedback to the contributor on how to improve their diff.
+        You are going to be provided with a pull request diff from a contributor to review. Your job is to determine if the diff is acceptable or not according to the project's "pull request guidelines" which will be provided below.
+        You have very high standards for accepting a diff. The project's guidelines for acceptable PRs are as follows:
 
-If the diff is acceptable, respond with "Acceptable". If the diff is not acceptable, respond with "Request Changes" and explain the needed changes. 
+        ```
+        Pull Request Guidelines:
 
-Below are guidelines for acceptable PRs.
+        - Pull requests should be atomic and focus on a single change.
+        - Pull requests should include tests. We automatically enforce this with [CodeCov](https://docs.codecov.com/docs/commit-status)
+        - Classes and methods should have docstrings.
+        - Pull requests should have a descriptive title and description. The description should explain what the pull request does.
+        - Pull requests should not include any unrelated or "extra" small tweaks or changes.
+        ```
 
-- Your pull request should be atomic and focus on a single change.
-- Your pull request should include tests for your change. We automatically enforce this with [CodeCov](https://docs.codecov.com/docs/commit-status)
-- You should have thoroughly tested your changes with multiple different prompts.
-- You should have considered potential risks and mitigations for your changes.
-- You should have documented your changes clearly and comprehensively.
-- You should not include any unrelated or "extra" small tweaks or changes.
-    """
+        You receive a pull request from a contributor. The diff for the pull request is as follows:
+
+        ```
+        {diff}
+        ```
+
+        If the diff is acceptable, respond with "Acceptable". If the diff is not acceptable, respond with "Request Changes" and explain the needed changes.
+
+    """)
     model = "gpt-4"
     # parse args to comma separated string
     messages = [
@@ -125,6 +135,8 @@ def _push_review(review, pr_link):
         "body": tail_of_review,
     }
     # print(f"Bearer {os.getenv('GITHUB_REVIEWER_TOKEN')}")
+    print('Pushing review: ', body)
+    print('url: ', f"https://api.github.com/repos/{info['owner']}/{info['repo']}/pulls/{info['pull_id']}/reviews")
     response = requests.post(
         f"https://api.github.com/repos/{info['owner']}/{info['repo']}/pulls/{info['pull_id']}/reviews",
         data=json.dumps(body),

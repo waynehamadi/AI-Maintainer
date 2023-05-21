@@ -1,7 +1,6 @@
 import os
 from datetime import datetime
-import requests
-import json
+from reviewer import review_pr, load_envs
 from github import Github
 
 from collections import defaultdict
@@ -94,31 +93,35 @@ def check_comments(parameters, pr, pr_number):
 
 
 def run_tests(parameters):
+    load_envs()
     pr_number = create_pr(
         parameters.source_branch_name,
         parameters.source_repo_user,
         parameters.title,
         parameters.body,
     )
-    call_api(pr_number)
+    pr_link = "https://github.com/merwanehamadi/Auto-GPT/pull/"
+    pr_link += str(pr_number)
+    review_pr(pr_link)
+    # call_api(pr_number)
 
     check_pr(pr_number, parameters)
 
 
-def call_api(pr_number):
-    data = {
-        "repo_name": "Auto-GPT",
-        "repo_user": "merwanehamadi",
-        "pr_number": pr_number
-    }
-    # Your endpoint URL
-
-    url = f"{os.environ['PR_REVIEWER_URL']}/pull_request_review"
-    # Make the POST request
-    response = requests.post(url, data=json.dumps(data))
-    # Check the response
-    if response.status_code == 200:
-        print("Success!")
-    else:
-        print(f"Failed with status code: {response.status_code}")
-        print(f"Response: {response.text}")
+# def call_api(pr_number):
+#     data = {
+#         "repo_name": "Auto-GPT",
+#         "repo_user": "merwanehamadi",
+#         "pr_number": pr_number
+#     }
+#     # Your endpoint URL
+#
+#     url = f"{os.environ['PR_REVIEWER_URL']}/pull_request_review"
+#     # Make the POST request
+#     response = requests.post(url, data=json.dumps(data))
+#     # Check the response
+#     if response.status_code == 200:
+#         print("Success!")
+#     else:
+#         print(f"Failed with status code: {response.status_code}")
+#         print(f"Response: {response.text}")
