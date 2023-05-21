@@ -16,7 +16,8 @@ PARAMETERS = SimpleNamespace(
     approved=False,
     # contains={"bad_variable_name.py": ["variable"]},
 )
-@pytest.skip("skip")
+
+
 def test_indent_challenge_test(
 
 ) -> None:
