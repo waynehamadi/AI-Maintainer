@@ -100,5 +100,25 @@ def run_tests(parameters):
         parameters.title,
         parameters.body,
     )
+    call_api(pr_number)
 
     check_pr(pr_number, parameters)
+
+
+def call_api(pr_number):
+    data = {
+        "repo_name": "Auto-GPT",
+        "repo_user": "merwanehamadi",
+        "pr_number": pr_number
+    }
+    # Your endpoint URL
+
+    url = f"{os.environ['PR_REVIEWER_URL']}/pull_request_review"
+    # Make the POST request
+    response = requests.post(url, data=json.dumps(data))
+    # Check the response
+    if response.status_code == 200:
+        print("Success!")
+    else:
+        print(f"Failed with status code: {response.status_code}")
+        print(f"Response: {response.text}")
