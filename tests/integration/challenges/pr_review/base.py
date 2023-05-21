@@ -9,7 +9,7 @@ PR_TARGET_BRANCH = "hackathon-pr-target"
 PR_TARGET_REPO_USER = "merwanehamadi"
 REPO_NAME = "Auto-GPT"
 PR_TARGET_REPO = f"{PR_TARGET_REPO_USER}/{REPO_NAME}"
-GITHUB_TOKEN = os.environ.get("GITHUB_PAT")
+GITHUB_TOKEN = os.environ.get("GITHUB_CREATOR_TOKEN")
 
 
 def create_pr(
@@ -100,24 +100,5 @@ def run_tests(parameters):
         parameters.title,
         parameters.body,
     )
-    # call_api(pr_number)
 
     check_pr(pr_number, parameters)
-
-
-def call_api(pr_number):
-    data = {
-        "repo_name": "Auto-GPT",
-        "repo_user": "merwanehamadi",
-        "pr_number": pr_number
-    }
-    # Your endpoint URL
-    url = "http://127.0.0.1:8080/pull_request_review"
-    # Make the POST request
-    response = requests.post(url, headers=headers, data=json.dumps(data))
-    # Check the response
-    if response.status_code == 200:
-        print("Success!")
-    else:
-        print(f"Failed with status code: {response.status_code}")
-        print(f"Response: {response.text}")

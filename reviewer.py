@@ -124,7 +124,7 @@ def _push_review(review, pr_link):
         "event": "APPROVE" if accepted else "REQUEST_CHANGES",
         "body": tail_of_review,
     }
-    print(f"Bearer {os.getenv('GITHUB_REVIEWER_TOKEN')}")
+    # print(f"Bearer {os.getenv('GITHUB_REVIEWER_TOKEN')}")
     response = requests.post(
         f"https://api.github.com/repos/{info['owner']}/{info['repo']}/pulls/{info['pull_id']}/reviews",
         data=json.dumps(body),
@@ -232,4 +232,4 @@ def create_chat_completion(
 
 if __name__ == "__main__":
     load_envs()
-    review_pr("https://github.com/merwanehamadi/Auto-GPT/pull/116")
+    review_pr("https://github.com/merwanehamadi/Auto-GPT/pull/301")
