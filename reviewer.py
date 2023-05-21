@@ -46,8 +46,10 @@ def review_pr(pr_link: str) -> str:
     diff = response.text
     print(f"diff: {diff}")
 
+    pr_info = extract_github_info(pr_link)
+
     # now we need to make llm call to evaluate the reponse
-    llm_response = _process_diff(diff)
+    llm_response = _gpt_process_pr(diff, pr_info)
     # llm_response = "acceptable stuff here"
     print(f"diff response: {llm_response}")
     _push_review(llm_response, pr_link)
@@ -55,36 +57,48 @@ def review_pr(pr_link: str) -> str:
     return "Successfully reviewed PR."
 
 
-def _process_diff(diff):
+def _gpt_process_pr(diff: str, pr_info: dict):
     """
-    Given a diff
+    Process the PR using GPT-4
     """
-    system_prompt = dedent(f"""
+    system_prompt = dedent(
+      f"""
       Instructions:
 
-        You are a github project maintainer and pull request reviewer. Your job is to review pull requests and determine if they are acceptable or not. When diffs are not acceptable, you must provide feedback to the contributor on how to improve their diff.
-        You are going to be provided with a pull request diff from a contributor to review. Your job is to determine if the diff is acceptable or not according to the project's "pull request guidelines" which will be provided below.
-        You have very high standards for accepting a diff. The project's guidelines for acceptable PRs are as follows:
+      You are a polite and professional github project maintainer and pull request reviewer with a sense of humor. Your job is to review pull requests and determine if they are acceptable or not. When diffs are not acceptable, you must provide feedback to the contributor on how to improve their diff.
+      You are going to be provided with a pull request diff from a contributor to review. Your job is to determine if the diff is acceptable or not according to the project's "pull request guidelines" which will be provided below.
+      You have very high standards for accepting a diff. The project's guidelines for acceptable PRs are as follows:
 
-        ```
-        Pull Request Guidelines:
+      ```
+      Pull Request Guidelines:
 
-        - Pull requests should be atomic and focus on a single change.
-        - Pull requests should include tests. We automatically enforce this with [CodeCov](https://docs.codecov.com/docs/commit-status)
-        - Classes and methods should have docstrings.
-        - Pull requests should have a descriptive title and description. The description should explain what the pull request does.
-        - Pull requests should not include any unrelated or "extra" small tweaks or changes.
-        ```
+      - Pull requests should include tests. We automatically enforce this with [CodeCov](https://docs.codecov.com/docs/commit-status)
+      - Classes and methods should have docstrings.
+      - Pull requests should have a descriptive title and description. The description should explain what the pull request does.
+      - Pull requests should not include any unrelated or "extra" small tweaks or changes.
+      - The title should not be blank.
+      ```
 
-        You receive a pull request from a contributor. The diff for the pull request is as follows:
+      You receive a pull request from a contributor. The title, description, and diff for the pull request is as follows:
 
-        ```
-        {diff}
-        ```
+      PR Title:
+      ```
+      {pr_info['pr_title']}
+      ```
+      
+      PR Description: 
+      ```
+      {pr_info['pr_description']}
+      ```
+      
+      PR Diff:
+      ```
+      {diff}
+      ```
 
-        If the diff is acceptable, respond with "Acceptable". If the diff is not acceptable, respond with "Request Changes" and explain the needed changes.
-
-    """)
+      If the diff is acceptable, respond with "Acceptable". If the diff is not acceptable, respond with "Request Changes" and explain the needed changes. Please be polite to the contributor.
+      """)
+    
     model = "gpt-4"
     # parse args to comma separated string
     messages = [
@@ -135,10 +149,8 @@ def _push_review(review, pr_link):
         "body": tail_of_review,
     }
     # print(f"Bearer {os.getenv('GITHUB_REVIEWER_TOKEN')}")
-    print('Pushing review: ', body)
-    print('url: ', f"https://api.github.com/repos/{info['owner']}/{info['repo']}/pulls/{info['pull_id']}/reviews")
     response = requests.post(
-        f"https://api.github.com/repos/{info['owner']}/{info['repo']}/pulls/{info['pull_id']}/reviews",
+        f"https://api.github.com/repos/{info['owner_username']}/{info['repo_name']}/pulls/{info['pull_id']}/reviews",
         data=json.dumps(body),
         headers={
             "Authorization": f"Bearer {os.getenv('GITHUB_REVIEWER_TOKEN')}",
@@ -155,18 +167,29 @@ def _push_review(review, pr_link):
 
 
 def extract_github_info(url):
+    
+    response = requests.get(url)
+    if response.status_code != 200:
+        raise ValueError(f'Invalid response status when fetching the diff: {response.status_code}. '
+                         f'Response text is: {response.text} ')
+    json = response.json()
+    
     pattern = r'https://github.com/([^/]+)/([^/]+)/pull/(\d+)'
     match = re.match(pattern, url)
 
-    if match:
-        owner, repo, pull_id = match.groups()
-        return {
-            'owner': owner,
-            'repo': repo,
-            'pull_id': int(pull_id)
-        }
-    else:
-        return None
+    title = json['title']
+    description = json['body']
+    owner_username = json['user']['login']
+    repo_name = json['head']['repo']['name']
+    pull_id = json['number']
+
+    return {
+        'owner_username': owner_username,
+        'repo_name': repo_name,
+        'pull_id': int(pull_id),
+        'title': title,
+        'description': description
+    }
 
 
 def create_chat_completion(
@@ -245,3 +268,4 @@ def create_chat_completion(
 if __name__ == "__main__":
     load_envs()
     review_pr("https://github.com/merwanehamadi/Auto-GPT/pull/301")
+
