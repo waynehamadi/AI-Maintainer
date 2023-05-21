@@ -139,6 +139,10 @@ def _push_review(review, owner_username, repo_name, pull_id):
     else:
         raise ValueError(f"Invalid response: {review}. It must start with either 'acceptable' or 'request changes'")
 
+    if tail_of_review[0] == ':':
+        tail_of_review = tail_of_review[1:]
+    tail_of_review = tail_of_review.strip()
+
     # now we need to push the review to github
     body = {
         "event": "APPROVE" if accepted else "REQUEST_CHANGES",
