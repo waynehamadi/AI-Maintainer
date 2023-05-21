@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+
+from IPython import embed
+
 import os
 import re
 from textwrap import dedent
@@ -20,7 +23,7 @@ def load_envs():
     load_dotenv()
 
 
-def review_pr(pr_link: str) -> str:
+def review_pr(api_url: str, diff_url: str, title: str, description: str) -> str:
     """
     A function that takes in code and suggestions and returns a response from create
       chat completion api call.
@@ -37,27 +40,25 @@ def review_pr(pr_link: str) -> str:
     Returns:
         A result string from create chat completion. Improved code in response.
     """
+
     # use requests to get the pr diff
-    diff_link = pr_link + '.diff'
-    response = requests.get(diff_link)
+    response = requests.get(diff_url)
     if response.status_code != 200:
         raise ValueError(f'Invalid response status: {response.status_code}. '
                          f'Response text is: {response.text} ')
     diff = response.text
     print(f"diff: {diff}")
 
-    pr_info = extract_github_info(pr_link)
-
     # now we need to make llm call to evaluate the reponse
-    llm_response = _gpt_process_pr(diff, pr_info)
+    llm_response = _gpt_process_pr(title, description, diff)
     # llm_response = "acceptable stuff here"
     print(f"diff response: {llm_response}")
-    _push_review(llm_response, pr_link)
+    _push_review(llm_response, api_url)
 
     return "Successfully reviewed PR."
 
 
-def _gpt_process_pr(diff: str, pr_info: dict):
+def _gpt_process_pr(title: str, description:str, diff: str):
     """
     Process the PR using GPT-4
     """
@@ -83,12 +84,12 @@ def _gpt_process_pr(diff: str, pr_info: dict):
 
       PR Title:
       ```
-      {pr_info['pr_title']}
+      {title}
       ```
       
       PR Description: 
       ```
-      {pr_info['pr_description']}
+      {description}
       ```
       
       PR Diff:
@@ -113,7 +114,7 @@ def _gpt_process_pr(diff: str, pr_info: dict):
     return response
 
 
-def _push_review(review, pr_link):
+def _push_review(review, api_url):
     """
     Push review to github
     link: https://api.github.com/repos/{{owner}}/{{repo}}/pulls/{{pull_number}}/reviews
@@ -132,7 +133,7 @@ def _push_review(review, pr_link):
     """
     accepted = False
 
-    info = extract_github_info(pr_link)
+    info = extract_github_info(api_url)
 
     review = review.strip()
     if review.lower().startswith("acceptable"):
@@ -172,8 +173,12 @@ def extract_github_info(url):
     if response.status_code != 200:
         raise ValueError(f'Invalid response status when fetching the diff: {response.status_code}. '
                          f'Response text is: {response.text} ')
+    
+    embed()
     json = response.json()
     
+
+
     pattern = r'https://github.com/([^/]+)/([^/]+)/pull/(\d+)'
     match = re.match(pattern, url)
 

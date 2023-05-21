@@ -12,10 +12,13 @@ async def handle_github_webhooks(request: Request, response: Response):
     # number = body.get("number", None)
     pull_request = body.get("pull_request", {})
     if action == "opened" or action == "reopened":
-        html_url = pull_request.get("html_url", None)
-        if html_url is None:
+        api_url = pull_request.get("url", None)
+        diff_url = pull_request.get("diff_url", None)
+        title = pull_request.get("title", None)
+        description = pull_request.get("body", None)
+        if api_url is None:
             return {}
-        msg = review_pr(html_url)
+        msg = review_pr(api_url, diff_url, title, description)
         print(msg)
 
     return {}
