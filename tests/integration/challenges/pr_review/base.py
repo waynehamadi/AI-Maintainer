@@ -105,7 +105,7 @@ def run_tests(parameters):
     'https://github.com/octocat/Hello-World/pull/1347.diff'
     diff_url = "https://github.com/merwanehamadi/Auto-GPT/pull/"
     diff_url += str(pr_number) + ".diff"
-    review_pr(api_url, diff_url, parameters.title, parameters.body, parameters.source_repo_user, 'Auto-GPT', pr_number)
+    review_pr(api_url, diff_url, parameters.title, parameters.body)
     # call_api(pr_number)
 
     check_pr(pr_number, parameters)
