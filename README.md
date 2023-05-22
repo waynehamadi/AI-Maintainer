@@ -3,7 +3,7 @@
 # What is this?
 A bot to auto-review pull requests.
 
-![img.png](img.png)
+![img_1.png](img_1.png)
 
 It requests changes or approves pull requests based on the changes made.
 
