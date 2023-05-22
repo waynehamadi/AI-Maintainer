@@ -21,10 +21,10 @@ We wanted to build a system that solved our problem of heavy pull request review
 
 This project started as a command for AutoGPT and then was spun out into its own stand-alone project.
 
-@dwrtz - David Wurtz
-@k-nearest-neighbor Desmond Grealy
-@merwanehamadi - Merwane Hamadi
-@dschonholtz - Douglas Schonholtz
+- @dwrtz - David Wurtz
+- @k-nearest-neighbor Desmond Grealy
+- @merwanehamadi - Merwane Hamadi
+- @dschonholtz - Douglas Schonholtz
 
 # Starting the server locally
 
