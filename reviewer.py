@@ -12,6 +12,9 @@ import time
 from dotenv import load_dotenv
 
 
+load_dotenv()
+
+
 def load_envs():
     """
     Loads env variables from .env file
@@ -38,8 +41,17 @@ def review_pr(api_url: str, diff_url: str, title: str, description: str) -> str:
         A result string from create chat completion. Improved code in response.
     """
 
+    grt = os.getenv("GITHUB_REVIEWER_TOKEN", None)
+    if grt is None:
+        raise ValueError("GITHUB_REVIEWER_TOKEN is not set")
+
     # use requests to get the pr diff
-    response = requests.get(diff_url)
+    response = requests.get(
+        diff_url,
+        headers={
+            "Authorization": f"Bearer {grt}",
+        }
+    )
     if response.status_code != 200:
         raise ValueError(f'Invalid response status: {response.status_code}. '
                          f'Response text is: {response.text} ')
