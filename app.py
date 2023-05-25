@@ -9,7 +9,7 @@ async def handle_github_webhooks(request: Request, response: Response):
     try:
         body = await request.json()
     except Exception as e:
-        print(e)
+        print("malformed request json", e)
         return {}
     print(body)
     pull_request = body.get("pull_request", None)
