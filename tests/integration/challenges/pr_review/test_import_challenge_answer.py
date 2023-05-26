@@ -18,6 +18,6 @@ PARAMETERS = SimpleNamespace(
     review_contains=["import"],
 )
 
-# @pytest.skip("skip")
+
 def test_import_challenge_answer() -> None:
     run_tests(PARAMETERS)

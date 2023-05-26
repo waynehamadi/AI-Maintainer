@@ -15,7 +15,6 @@ PARAMETERS = SimpleNamespace(
     review_contains=[],
     # contains={"bad_variable_name.py": ["variable"]},
 )
-@pytest.mark.skip("skip")
 def test_imports_challenge_test(
 
 ) -> None:

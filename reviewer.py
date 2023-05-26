@@ -12,6 +12,9 @@ import time
 from dotenv import load_dotenv
 
 
+load_dotenv()
+
+
 def load_envs():
     """
     Loads env variables from .env file
@@ -20,7 +23,22 @@ def load_envs():
     load_dotenv()
 
 
-def review_pr(pr_link: str) -> str:
+def get_diff(diff_url: str, full_name, token: str) -> str | None:
+    pull_number = diff_url.split("/")[-1].split(".")[0]
+    owner, repo = full_name.split("/")
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pull_number}"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github.v3.diff",
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.text
+    else:
+        print(response.status_code)
+        return None
+
+def review_pr(api_url: str, diff_url: str, title: str, description: str, full_name: str) -> str:
     """
     A function that takes in code and suggestions and returns a response from create
       chat completion api call.
@@ -37,54 +55,70 @@ def review_pr(pr_link: str) -> str:
     Returns:
         A result string from create chat completion. Improved code in response.
     """
-    # use requests to get the pr diff
-    diff_link = pr_link + '.diff'
-    response = requests.get(diff_link)
-    if response.status_code != 200:
-        raise ValueError(f'Invalid response status: {response.status_code}. '
-                         f'Response text is: {response.text} ')
-    diff = response.text
+
+    grt = os.getenv("GITHUB_REVIEWER_TOKEN", None)
+    if grt is None:
+        raise ValueError("GITHUB_REVIEWER_TOKEN is not set")
+
+    # get the pr diff
+    diff = get_diff(diff_url, full_name, grt)
+    if diff is None:
+        print("diff_url: ", diff_url)
+        print("full_name: ", full_name)
+        raise ValueError("Could not get diff")
     print(f"diff: {diff}")
 
     # now we need to make llm call to evaluate the reponse
-    llm_response = _process_diff(diff)
+    llm_response = _gpt_process_pr(title, description, diff)
     # llm_response = "acceptable stuff here"
     print(f"diff response: {llm_response}")
-    _push_review(llm_response, pr_link)
+    _push_review(llm_response, api_url)
 
     return "Successfully reviewed PR."
 
 
-def _process_diff(diff):
+def _gpt_process_pr(title: str, description:str, diff: str):
     """
-    Given a diff
+    Process the PR using GPT-4
     """
-    system_prompt = dedent(f"""
+    system_prompt = dedent(
+      f"""
       Instructions:
 
-        You are a github project maintainer and pull request reviewer. Your job is to review pull requests and determine if they are acceptable or not. When diffs are not acceptable, you must provide feedback to the contributor on how to improve their diff.
-        You are going to be provided with a pull request diff from a contributor to review. Your job is to determine if the diff is acceptable or not according to the project's "pull request guidelines" which will be provided below.
-        You have very high standards for accepting a diff. The project's guidelines for acceptable PRs are as follows:
+      You are a polite and professional github project maintainer and pull request reviewer with a sense of humor. Your job is to review pull requests and determine if they are acceptable or not. When diffs are not acceptable, you must provide feedback to the contributor on how to improve their diff.
+      You are going to be provided with a pull request diff from a contributor to review. Your job is to determine if the diff is acceptable or not according to the project's "pull request guidelines" which will be provided below.
+      You have very high standards for accepting a diff. The project's guidelines for acceptable PRs are as follows:
 
-        ```
-        Pull Request Guidelines:
+      ```
+      Pull Request Guidelines:
 
-        - Pull requests should be atomic and focus on a single change.
-        - Pull requests should include tests. We automatically enforce this with [CodeCov](https://docs.codecov.com/docs/commit-status)
-        - Classes and methods should have docstrings.
-        - Pull requests should have a descriptive title and description. The description should explain what the pull request does.
-        - Pull requests should not include any unrelated or "extra" small tweaks or changes.
-        ```
+      - Pull requests should include tests. We automatically enforce this with [CodeCov](https://docs.codecov.com/docs/commit-status)
+      - Classes and methods should have docstrings.
+      - Pull requests should have a descriptive title and description. The description should explain what the pull request does.
+      - Pull requests should not include any unrelated or "extra" small tweaks or changes.
+      - The title should not be blank.
+      ```
 
-        You receive a pull request from a contributor. The diff for the pull request is as follows:
+      You receive a pull request from a contributor. The title, description, and diff for the pull request is as follows:
 
-        ```
-        {diff}
-        ```
+      PR Title:
+      ```
+      {title}
+      ```
+      
+      PR Description: 
+      ```
+      {description}
+      ```
+      
+      PR Diff:
+      ```
+      {diff}
+      ```
 
-        If the diff is acceptable, respond with "Acceptable". If the diff is not acceptable, respond with "Request Changes" and explain the needed changes.
-
-    """)
+      If the diff is acceptable, respond with "Acceptable". If the diff is not acceptable, respond with "Request Changes" and explain the needed changes. Please be polite to the contributor.
+      """)
+    
     model = "gpt-4"
     # parse args to comma separated string
     messages = [
@@ -99,10 +133,10 @@ def _process_diff(diff):
     return response
 
 
-def _push_review(review, pr_link):
+def _push_review(review, api_url):
     """
     Push review to github
-    link: https://api.github.com/repos/{{owner}}/{{repo}}/pulls/{{pull_number}}/reviews
+    link: https://api.github.com/repos/{{owner_username}}/{{repo_name}}/pulls/{{pull_id}}/reviews
     Body: {
         "event": "APPROVE",
         "body": "review"
@@ -118,8 +152,6 @@ def _push_review(review, pr_link):
     """
     accepted = False
 
-    info = extract_github_info(pr_link)
-
     review = review.strip()
     if review.lower().startswith("acceptable"):
         accepted = True
@@ -129,16 +161,18 @@ def _push_review(review, pr_link):
     else:
         raise ValueError(f"Invalid response: {review}. It must start with either 'acceptable' or 'request changes'")
 
+    if tail_of_review[0] == ':':
+        tail_of_review = tail_of_review[1:]
+    tail_of_review = tail_of_review.strip()
+
     # now we need to push the review to github
     body = {
         "event": "APPROVE" if accepted else "REQUEST_CHANGES",
         "body": tail_of_review,
     }
     # print(f"Bearer {os.getenv('GITHUB_REVIEWER_TOKEN')}")
-    print('Pushing review: ', body)
-    print('url: ', f"https://api.github.com/repos/{info['owner']}/{info['repo']}/pulls/{info['pull_id']}/reviews")
     response = requests.post(
-        f"https://api.github.com/repos/{info['owner']}/{info['repo']}/pulls/{info['pull_id']}/reviews",
+        api_url + "/reviews",
         data=json.dumps(body),
         headers={
             "Authorization": f"Bearer {os.getenv('GITHUB_REVIEWER_TOKEN')}",
@@ -152,22 +186,7 @@ def _push_review(review, pr_link):
     if response.status_code != 200:
         raise ValueError(f'Invalid response status: {response.status_code}. '
                          f'Response text is: {response.text} ')
-
-
-def extract_github_info(url):
-    pattern = r'https://github.com/([^/]+)/([^/]+)/pull/(\d+)'
-    match = re.match(pattern, url)
-
-    if match:
-        owner, repo, pull_id = match.groups()
-        return {
-            'owner': owner,
-            'repo': repo,
-            'pull_id': int(pull_id)
-        }
-    else:
-        return None
-
+    print(f"Successfully pushed review to github. Response: {response.text}")
 
 def create_chat_completion(
     messages: List[Message],  # type: ignore
@@ -245,3 +264,4 @@ def create_chat_completion(
 if __name__ == "__main__":
     load_envs()
     review_pr("https://github.com/merwanehamadi/Auto-GPT/pull/301")
+

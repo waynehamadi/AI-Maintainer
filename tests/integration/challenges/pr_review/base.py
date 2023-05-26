@@ -109,18 +109,18 @@ def check_last_review(parameters, pr, pr_number, PR_TARGET_REPO):
 
 def run_tests(parameters):
     load_envs()
-    if hasattr(parameters, "pr_number"):
-        pr_number = parameters.pr_number
-    else:
-        pr_number = create_pr(
-            parameters.source_branch_name,
-            parameters.source_repo_user,
-            parameters.title,
-            parameters.body,
-        )
+    pr_number = create_pr(
+        parameters.source_branch_name,
+        parameters.source_repo_user,
+        parameters.title,
+        parameters.body,
+    )
 
-    pr_link = "https://github.com/merwanehamadi/Auto-GPT/pull/"
-    pr_link += str(pr_number)
-    review_pr(pr_link)
+    api_url = 'https://api.github.com/repos/merwanehamadi/Auto-GPT/pulls/' + str(pr_number)
+    'https://github.com/octocat/Hello-World/pull/1347.diff'
+    diff_url = "https://github.com/merwanehamadi/Auto-GPT/pull/"
+    diff_url += str(pr_number) + ".diff"
+    review_pr(api_url, diff_url, parameters.title, parameters.body)
+    # call_api(pr_number)
 
     check_pr(pr_number, parameters)
