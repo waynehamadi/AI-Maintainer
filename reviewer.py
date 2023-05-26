@@ -23,7 +23,22 @@ def load_envs():
     load_dotenv()
 
 
-def review_pr(api_url: str, diff_url: str, title: str, description: str) -> str:
+def get_diff(diff_url: str, full_name, token: str) -> str | None:
+    pull_number = diff_url.split("/")[-1].split(".")[0]
+    owner, repo = full_name.split("/")
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pull_number}"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github.v3.diff",
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.text
+    else:
+        print(response.status_code)
+        return None
+
+def review_pr(api_url: str, diff_url: str, title: str, description: str, full_name: str) -> str:
     """
     A function that takes in code and suggestions and returns a response from create
       chat completion api call.
@@ -45,17 +60,12 @@ def review_pr(api_url: str, diff_url: str, title: str, description: str) -> str:
     if grt is None:
         raise ValueError("GITHUB_REVIEWER_TOKEN is not set")
 
-    # use requests to get the pr diff
-    response = requests.get(
-        diff_url,
-        headers={
-            "Authorization": f"Bearer {grt}",
-        }
-    )
-    if response.status_code != 200:
-        raise ValueError(f'Invalid response status: {response.status_code}. '
-                         f'Response text is: {response.text} ')
-    diff = response.text
+    # get the pr diff
+    diff = get_diff(diff_url, full_name, grt)
+    if diff is None:
+        print("diff_url: ", diff_url)
+        print("full_name: ", full_name)
+        raise ValueError("Could not get diff")
     print(f"diff: {diff}")
 
     # now we need to make llm call to evaluate the reponse
